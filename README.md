@@ -12,13 +12,13 @@ Here are the steps it performs:
 * Generates a symmetric random AES-256 key string
 * Encrypt secret-text with this symmetric key
 * Encrypt this symmetric key with the supplied assymetric public key
-* Returns as base64, the encrypted text and the encrypted symmetic key
+* Returns as base64, the encrypted text and the encrypted symmetric key
 
 
 Dependencies
 ------------
 
-Crypto needs openssl, install it as:
+Crypto needs openssl. Install it as:
 
     gem install openssl
 
@@ -35,7 +35,7 @@ Extract the public_key:
     $ openssl rsa -in /tmp/user.pem -pubout > /tmp/user.pub
     
     
-Then it's super simple to encrypt with the users public key:
+Then it's super simple to encrypt with the user's public key:
 
 	require './crypto'
 	# read the public key of your intended recipient
@@ -55,7 +55,7 @@ Likewise to decrypt:
 Examples
 --------
 
-For a working example, take a look at [examples][examples].
+For a working example, take a look at [examples](https://github.com/vlod/crypto/tree/master/examples).
 
 
 
