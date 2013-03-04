@@ -7,18 +7,18 @@ Simple way to pass public-key encrypted messages
 Behind The Curtain
 ------------------
 
-Here are the steps:
+Here are the steps it performs:
 
 * Generates a symmetric random AES-256 key string
 * Encrypt secret-text with this symmetric key
 * Encrypt this symmetric key with the supplied assymetric public key
-* Returns as base64 the encrypted text and the encrypted symmetic key
+* Returns as base64, the encrypted text and the encrypted symmetic key
 
 
 Dependencies
 ------------
 
-Crypto needs openssl, install as:
+Crypto needs openssl, install it as:
 
     gem install openssl
 
@@ -26,11 +26,11 @@ Crypto needs openssl, install as:
 Usage
 -----
 
-First we need to generate public-private key pair:
+First we need to generate a public-private key pair:
 
     $ openssl genrsa -out /tmp/user.pem 1024
 
-Then extract the public_key:
+Extract the public_key:
 
     $ openssl rsa -in /tmp/user.pem -pubout > /tmp/user.pub
     
@@ -72,6 +72,6 @@ License
 
 Licensed under the MIT License
 
-If you're so inclined, shoot me an email vlod [@] vlod.com on how you're using it. 
-I'm always curious if you're doing anything cool.
+If you're so inclined, shoot me an email at: vlod [@] vlod.com on how you're using it. 
+I'm always curious if you're doing anything cool! :)
 
