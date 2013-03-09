@@ -1,58 +1,74 @@
 require "openssl"
 require 'base64'
+require 'yaml'
+require 'debugger'
 
 # Here are the steps
-# 1. Generate a symmetric AES-256 random key string (symm_key)
-# 2. Encrypt secret-text with this symmetric key
-# 3. Encrypt this symmetric key with the supplied assymetric public key
-# 4. Return the encrypted text and the encrypted symmetic key, as base64
+# * Generates a symmetric random AES-256 key string
+# * Encrypt secret-text with this symmetric key
+# * Encrypt the symmetric key, with the senders private key (Sender authentication).
+# * Encrypt this authenticated key with the recipients public key
+# * Returns as base64, the encrypted text and the encrypted symmetric key
+
 
 class Crypto
   SYMMETRIC_ALG = "AES-256-CBC"
 
-  def encrypt(public_key_text, secret_text)
-    # generate a random symmetric key to use to encrypt
-    symmetric_key = OpenSSL::Cipher::Cipher.new(SYMMETRIC_ALG).random_key
-
-    # set up the symmetic cipher to encryption
-    cipher = OpenSSL::Cipher::Cipher.new(SYMMETRIC_ALG)
-    cipher.encrypt
-    cipher.key = symmetric_key
-
-    # and encrypt the secret_text
-    encrypted_text = cipher.update(secret_text) + cipher.final
-
-    # right, let's encrypt the symmetric_key with the user's public key
-    public_key = OpenSSL::PKey::RSA.new public_key_text
-    symmetric_key_encrypted = public_key.public_encrypt symmetric_key
-
-    # return results in base64 as we're most likely sending it over http
-    symmetric_key_encrypted_b64 = [symmetric_key_encrypted].pack('m')
-    encrypted_text_b64          = [encrypted_text].pack('m')
-
-    {key:symmetric_key_encrypted_b64, body:encrypted_text_b64}
+  def initialize(public_private_key_text)
+    @pub_prv_key = OpenSSL::PKey::RSA.new public_private_key_text
   end
 
-  # reverse of the above, but we use the private_key instead
-  def decrypt(private_key_text, contents)
-    raise "no key supplied"  unless contents[:key]
-    raise "no body supplied" unless contents[:body]
+  def encrypt(recipient_pubkey_text, secret_text)
+    recipient_pub_key = OpenSSL::PKey::RSA.new recipient_pubkey_text
 
-    # parameters are in base64, unpack them
-    decrypt_key    = contents[:key].unpack('m')[0]
-    encrypted_text = contents[:body].unpack('m')[0]
+    # use a symmetric alg to encrypt, but first generate a random key
+    cipher = OpenSSL::Cipher::Cipher.new(SYMMETRIC_ALG)
+    cipher.encrypt
+    cipher.key = random_symm_key = cipher.random_key
 
-    # the decrypt_key is encrypted with a public key, decrypt with the supplied private key
-    private_key = OpenSSL::PKey::RSA.new private_key_text
-    symmetric_key = private_key.private_decrypt decrypt_key
+    # apply a sender authentication on the symmetric_key (using the sender private key)
+    authenticated_symmetric_key = @pub_prv_key.private_encrypt random_symm_key
 
-    # we have the symmetric key, set up the cipher to decrypt
+    # lets encrypt the the authenticated symm key, with the recipients public key
+
+    # unfort RSA doesn't like to encrypt data that's bigger than its key size. ughh :/
+    # so we have to split this all up. *sigh*. might as well base64 it as well
+    symm_keys_b64 = []
+    authenticated_symmetric_key.bytes.each_slice(117) do |slice|
+      symm_keys_b64 << Base64.encode64( recipient_pub_key.public_encrypt(slice.pack('C*')) )
+    end
+
+    # and now encrypt the secret_text with the symmetric key, then b64 it
+    encrypted_text     = cipher.update(secret_text) + cipher.final
+    encrypted_text_b64 = Base64.encode64 encrypted_text
+
+    # serialize all this out
+    YAML::dump(keys:symm_keys_b64, body:encrypted_text_b64)
+  end
+
+  # reverse of the above
+  def decrypt(sender_pubkey_text, data_blob)
+    sender_pub_key = OpenSSL::PKey::RSA.new sender_pubkey_text
+    data = YAML::load(data_blob)
+
+    # each of the keys are encrypted with the recipients pub_key. decrypt with prv_key
+    # we add all these pieces together to form the authenticated symmetrical key
+    symm_key = ""
+    data[:keys].each do |key|
+      symm_key << @pub_prv_key.private_decrypt(Base64.decode64 key)
+    end
+
+    # make sure this message really came from the sender
+    symmetric_key = sender_pub_key.public_decrypt(symm_key)
+
+    # we now have the original symmetric key, set up the cipher to decrypt
     cipher = OpenSSL::Cipher::Cipher.new(SYMMETRIC_ALG)
     cipher.decrypt
     cipher.key = symmetric_key
 
     # and return the decrypted text
-    plain_text = cipher.update(encrypted_text) + cipher.final
+    plain_text = cipher.update(Base64.decode64 data[:body]) + cipher.final
     plain_text
   end
 end
+

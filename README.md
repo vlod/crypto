@@ -11,7 +11,8 @@ Here are the steps it performs:
 
 * Generates a symmetric random AES-256 key string
 * Encrypt secret-text with this symmetric key
-* Encrypt this symmetric key with the supplied assymetric public key
+* Encrypt the symmetric key, with the senders private key (Sender authentication).
+* Encrypt this authenticated key with the recipients public key
 * Returns as base64, the encrypted text and the encrypted symmetric key
 
 
@@ -26,32 +27,44 @@ Crypto needs openssl. Install it as:
 Usage
 -----
 
-First we need to generate a public-private key pair:
+Alice wants to send a message to Bob, making sure the the message is authenticated, so that Bob knows it came from Alice.
 
-    $ openssl genrsa -out /tmp/user.pem 1024
+First we need to generate a public-private key pair for our 2 users
+
+    $ openssl genrsa -out /tmp/alice.pem 1024
+    $ openssl genrsa -out /tmp/bob.pem 1024
 
 Extract the public_key:
 
-    $ openssl rsa -in /tmp/user.pem -pubout > /tmp/user.pub
-    
-    
+    $ openssl rsa -in /tmp/alice.pem -pubout > /tmp/alice.pub
+    $ openssl rsa -in /tmp/bob.pem -pubout > /tmp/bob.pub
+
+
 Then it's super simple to encrypt with the user's public key:
 
 	require './crypto'
-	# read the public key of your intended recipient
-    user_public_key = File.read "/tmp/user.pub"
-    encrypted_results = Crypto.new.encrypt user_public_key, "my-secret-plan-for-world-domination" 
-    
-Likewise to decrypt:
+    # Alice sets up a crypto object with her private-public key combo
+    crypto = Crypto.new File.read("/tmp/alice.pem")
 
-    # recipient reads their private key
-    user_private_key = File.read "/tmp/user.pem"
-    decrypted_text = Crypto.new.decrypt user_private_key, encrypted_results
+	# and reads the public key of Bob (intended recipient)
+    bob_public_key = File.read "/tmp/bob.pub"
+    encrypted_results = crypto.encrypt bob_public_key, "my-secret-plan-for-world-domination"
+
+Likewise to decrypt:
+    # Bob gets a message apparently from Alice
+
+    # Bob sets up a crypto object with his private-public key combo
+    crypto = Crypto.new File.read("/tmp/bob.pem")
+
+    # and reads the public key of Alice (apparent sender),
+    # so we can make sure it really came from her
+    alice_public_key = File.read "/tmp/alice.pub"
+    decrypted_text = crypto.decrypt alice_public_key, encrypted_results
     puts decrypted_text
-    
-    -> "my-secret-plan-for-world-domination" 
-       
-    
+
+    -> "my-secret-plan-for-world-domination"
+
+
 Examples
 --------
 
@@ -72,6 +85,6 @@ License
 
 Licensed under the MIT License
 
-If you're so inclined, shoot me an email at: vlod [@] vlod.com on how you're using it. 
+If you're so inclined, shoot me an email at: vlod [@] vlod.com on how you're using it.
 I'm always curious if you're doing anything cool! :)
 
