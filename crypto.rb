@@ -1,7 +1,6 @@
 require "openssl"
 require 'base64'
 require 'yaml'
-require 'debugger'
 
 # Here are the steps
 # * Generates a symmetric random AES-256 key string
