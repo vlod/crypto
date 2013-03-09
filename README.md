@@ -1,7 +1,12 @@
 crypto
 ======
 
-Simple way to pass public-key encrypted messages
+Simple way to pass public-key encrypted (and authenticated) messages.
+
+Problem
+------------------
+
+Alice wants to share top secret plans to take over the world to Bob, making sure that he know it came from her and not from their arch enemy [Chuck](http://en.wikipedia.org/wiki/Alice_and_Bob). 
 
 
 Behind The Curtain
@@ -46,8 +51,9 @@ Then it's super simple to encrypt with the user's public key:
     # Alice sets up a crypto object with her private-public key combo
     crypto = Crypto.new File.read("/tmp/alice.pem")
 
-	# and reads the public key of Bob (intended recipient)
+	# reads the public key of Bob (intended recipient)
     bob_public_key = File.read "/tmp/bob.pub"
+    # and encrypts her super secret plans
     encrypted_results = crypto.encrypt bob_public_key, "my-secret-plan-for-world-domination"
 
 Likewise to decrypt:
@@ -56,9 +62,11 @@ Likewise to decrypt:
     # Bob sets up a crypto object with his private-public key combo
     crypto = Crypto.new File.read("/tmp/bob.pem")
 
-    # and reads the public key of Alice (apparent sender),
+    # and reads the public key of Alice (apparent sender) 
     # so we can make sure it really came from her
     alice_public_key = File.read "/tmp/alice.pub"
+
+    # it definitely came from alice, ok decrypt the message
     decrypted_text = crypto.decrypt alice_public_key, encrypted_results
     puts decrypted_text
 
